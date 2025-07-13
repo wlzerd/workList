@@ -8,7 +8,7 @@ This project provides a simple web interface for Discord server administrators t
 - **Check-in/Check-out Buttons** once logged in.
 - **Sidebar Navigation** to Announcements, Check-in/out and Admin Status with mobile-friendly toggle.
 - **Admin Status Page** shows currently checked-in administrators.
-- **Discord Bot** records member roles in a SQLite database to verify admin access.
+- **Discord Bot** stores guild role names and permission flags in SQLite and uses them to verify admin access.
 - **Responsive Design** prioritizing mobile devices.
 
 ## Setup
