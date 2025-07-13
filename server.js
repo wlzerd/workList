@@ -28,14 +28,14 @@ passport.use(new DiscordStrategy({
     callbackURL: CALLBACK_URL,
     scope: scopes
 }, function(accessToken, refreshToken, profile, done) {
-    return done(null, profile);
+    loadUser(profile, done);
 }));
 
 passport.serializeUser((user, done) => {
     done(null, user);
 });
 
-passport.deserializeUser((obj, done) => {
+function loadUser(obj, done) {
     db.get('SELECT displayName, roles FROM members WHERE id = ?', [obj.id], (err, row) => {
         if (err || !row) {
             if (row) obj.displayName = row.displayName;
@@ -66,7 +66,9 @@ passport.deserializeUser((obj, done) => {
             done(null, obj);
         });
     });
-});
+}
+
+passport.deserializeUser(loadUser);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
