@@ -3,7 +3,8 @@ const session = require('express-session');
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const path = require('path');
-const { Client, GatewayIntentBits, PermissionsBitField } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { DateTime } = require('luxon');
 const db = require('./database');
 
 const app = express();
@@ -30,6 +31,15 @@ db.get('SELECT value FROM settings WHERE key = ?', ['autoRoleIds'], (err, row) =
             }
         });
     }
+});
+
+let birthdayCategoryId = null;
+let birthdayChannelFormat = '{user}님의 생일입니다';
+db.get('SELECT value FROM settings WHERE key = ?', ['birthdayCategoryId'], (err, row) => {
+    if (!err && row && row.value) birthdayCategoryId = row.value;
+});
+db.get('SELECT value FROM settings WHERE key = ?', ['birthdayChannelFormat'], (err, row) => {
+    if (!err && row && row.value) birthdayChannelFormat = row.value;
 });
 
 const scopes = ['identify'];
@@ -122,6 +132,30 @@ function assignAutoRole(member) {
     });
 }
 
+function getSettingAsync(key) {
+    return new Promise(resolve => {
+        db.get('SELECT value FROM settings WHERE key = ?', [key], (err, row) => {
+            resolve(err || !row ? null : row.value);
+        });
+    });
+}
+
+async function checkBirthdays() {
+    const today = DateTime.now().setZone('Asia/Seoul').toFormat('yyyy-MM-dd');
+    db.all('SELECT userId FROM birthdays WHERE date = ?', [today], async (err, rows) => {
+        if (err || !rows || rows.length === 0) return;
+        const guild = await client.guilds.fetch(GUILD_ID);
+        const categoryId = await getSettingAsync('birthdayCategoryId');
+        const format = (await getSettingAsync('birthdayChannelFormat')) || birthdayChannelFormat;
+        for (const row of rows) {
+            const user = await client.users.fetch(row.userId).catch(() => null);
+            if (!user) continue;
+            const name = format.replace('{user}', user.username);
+            guild.channels.create({ name, type: 0, parent: categoryId || undefined }).catch(console.error);
+        }
+    });
+}
+
 client.on('ready', async () => {
     console.log(`Bot logged in as ${client.user.tag}`);
     const guild = await client.guilds.fetch(GUILD_ID);
@@ -135,6 +169,18 @@ client.on('ready', async () => {
 
     await guild.members.fetch();
     guild.members.cache.forEach(member => updateMember(member));
+
+    const commands = [
+        new SlashCommandBuilder()
+            .setName('생일')
+            .setDescription('사용자의 생일을 등록합니다')
+            .addUserOption(o => o.setName('user').setDescription('대상 사용자').setRequired(true))
+            .addStringOption(o => o.setName('date').setDescription('YYYY-MM-DD').setRequired(true))
+            .toJSON()
+    ];
+    await guild.commands.set(commands);
+    checkBirthdays();
+    setInterval(checkBirthdays, 60 * 60 * 1000);
     db.all('SELECT displayName, roles FROM members', (err, rows) => {
         if (err) {
             console.error('Error fetching roles from DB', err);
@@ -176,6 +222,29 @@ client.on('roleDelete', role => {
     db.run('DELETE FROM roles WHERE id = ?', [role.id]);
 });
 
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+    if (interaction.commandName === '생일') {
+        const user = interaction.options.getUser('user');
+        const date = interaction.options.getString('date');
+        if (!/\d{4}-\d{2}-\d{2}/.test(date)) {
+            await interaction.reply({ content: '날짜 형식은 YYYY-MM-DD 입니다.', ephemeral: true });
+            return;
+        }
+        db.run(
+            'INSERT OR REPLACE INTO birthdays (userId, date) VALUES (?, ?)',
+            [user.id, date],
+            err => {
+                if (err) {
+                    interaction.reply({ content: 'DB 오류가 발생했습니다.', ephemeral: true });
+                } else {
+                    interaction.reply({ content: '생일이 저장되었습니다.', ephemeral: true });
+                }
+            }
+        );
+    }
+});
+
 client.login(DISCORD_BOT_TOKEN).catch(err => console.error('Bot login failed', err));
 
 const checkins = {}; // In-memory check-in data
@@ -212,6 +281,25 @@ app.get('/auto-role', ensureAdmin, (req, res) => {
         const selectedRoles = roles.filter(r => autoRoleIds.includes(r.id));
         res.render('autoRole', { user: req.user, roles, currentRoles: autoRoleIds, selectedRoles });
     });
+});
+
+app.get('/birthday-settings', ensureAdmin, (req, res) => {
+    db.all('SELECT key, value FROM settings WHERE key IN (?, ?)', ['birthdayCategoryId', 'birthdayChannelFormat'], (err, rows) => {
+        const settings = { categoryId: birthdayCategoryId, channelFormat: birthdayChannelFormat };
+        rows.forEach(r => {
+            if (r.key === 'birthdayCategoryId') settings.categoryId = r.value;
+            if (r.key === 'birthdayChannelFormat') settings.channelFormat = r.value;
+        });
+        res.render('birthdaySettings', { user: req.user, settings });
+    });
+});
+
+app.post('/birthday-settings', ensureAdmin, (req, res) => {
+    birthdayCategoryId = req.body.categoryId || '';
+    birthdayChannelFormat = req.body.channelFormat || '{user}님의 생일입니다';
+    db.run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ['birthdayCategoryId', birthdayCategoryId]);
+    db.run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ['birthdayChannelFormat', birthdayChannelFormat]);
+    res.redirect('/birthday-settings');
 });
 
 app.post('/auto-role', ensureAdmin, (req, res) => {

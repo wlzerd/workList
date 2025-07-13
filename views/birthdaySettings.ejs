@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>출/퇴근</title>
+    <title>생일 채널 설정</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -25,31 +25,27 @@
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <div class="d-flex align-items-center">
                     <button class="btn btn-outline-secondary d-md-none me-2" id="sidebarToggle">☰</button>
-                    <h1 class="h2 m-0">출/퇴근</h1>
+                    <h1 class="h2 m-0">생일 채널 설정</h1>
                 </div>
                 <% if (user) { %>
                     <div>
                         <span><%= user.displayName || user.username %></span>
                         <a href="/logout" class="btn btn-sm btn-outline-danger">로그아웃</a>
                     </div>
-                <% } else { %>
-                    <a href="/login" class="btn btn-primary">Discord 로그인</a>
                 <% } %>
             </div>
             <% if (user) { %>
-            <form method="post" action="/checkin" class="d-inline">
-                <button class="btn btn-success" type="submit">출근</button>
+            <form method="post" action="/birthday-settings">
+                <div class="mb-3">
+                    <label for="categoryId" class="form-label">카테고리 ID</label>
+                    <input type="text" class="form-control" id="categoryId" name="categoryId" value="<%= settings.categoryId || '' %>">
+                </div>
+                <div class="mb-3">
+                    <label for="channelFormat" class="form-label">채널 이름 형식 ( {user} 사용 가능 )</label>
+                    <input type="text" class="form-control" id="channelFormat" name="channelFormat" value="<%= settings.channelFormat || '{user}님의 생일입니다' %>">
+                </div>
+                <button type="submit" class="btn btn-primary">저장</button>
             </form>
-            <form method="post" action="/checkout" class="d-inline">
-                <button class="btn btn-warning" type="submit">퇴근</button>
-            </form>
-            <hr>
-            <h4>출근 현황</h4>
-            <ul>
-                <% Object.keys(checkins).forEach(function(id) { %>
-                    <li><%= checkins[id].username || id %> - <%= checkins[id].status %> (<%= checkins[id].time.toLocaleString() %>)</li>
-                <% }) %>
-            </ul>
             <% } %>
         </main>
     </div>
