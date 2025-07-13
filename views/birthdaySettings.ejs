@@ -44,6 +44,15 @@
                     <label for="channelFormat" class="form-label">채널 이름 형식 ( {user} 사용 가능 )</label>
                     <input type="text" class="form-control" id="channelFormat" name="channelFormat" value="<%= settings.channelFormat || '{user}님의 생일입니다' %>">
                 </div>
+                <div class="mb-3">
+                    <label for="roleId" class="form-label">생일 역할</label>
+                    <select class="form-select" id="roleId" name="roleId">
+                        <option value="">선택 안 함</option>
+                        <% roles.forEach(function(role) { %>
+                            <option value="<%= role.id %>" <%= settings.roleId === role.id ? 'selected' : '' %>><%= role.name %></option>
+                        <% }) %>
+                    </select>
+                </div>
                 <button type="submit" class="btn btn-primary">저장</button>
             </form>
             <% } %>
