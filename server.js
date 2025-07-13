@@ -19,6 +19,10 @@ const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || 'YOUR_BOT_TOKEN';
 const GUILD_ID = process.env.GUILD_ID || 'YOUR_GUILD_ID';
 const ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID; // optional
 const SPECIAL_ROLE_ID = '1015569732532961310';
+let autoRoleId = null;
+db.get('SELECT value FROM settings WHERE key = ?', ['autoRoleId'], (err, row) => {
+    if (!err && row) autoRoleId = row.value || null;
+});
 
 const scopes = ['identify'];
 
@@ -73,6 +77,7 @@ passport.deserializeUser(loadUser);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.urlencoded({ extended: true }));
 app.use(session({ secret: 'discord-checkin-secret', resave: false, saveUninitialized: false }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -89,6 +94,19 @@ function updateMember(member) {
         'INSERT OR REPLACE INTO members (id, displayName, roles, isAdmin) VALUES (?, ?, ?, ?)',
         [member.id, member.displayName, roles, isAdmin ? 1 : 0]
     );
+}
+
+function setAutoRoleId(id) {
+    autoRoleId = id || null;
+    db.run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ['autoRoleId', id || '']);
+}
+
+function assignAutoRole(member) {
+    if (!autoRoleId) return;
+    const role = member.guild.roles.cache.get(autoRoleId);
+    if (role) {
+        member.roles.add(role).catch(err => console.error('Failed to assign auto role', err));
+    }
 }
 
 client.on('ready', async () => {
@@ -118,7 +136,10 @@ client.on('ready', async () => {
     });
 });
 
-client.on('guildMemberAdd', member => updateMember(member));
+client.on('guildMemberAdd', member => {
+    updateMember(member);
+    assignAutoRole(member);
+});
 client.on('guildMemberUpdate', (oldMember, newMember) => updateMember(newMember));
 client.on('guildMemberRemove', member => {
     db.run('DELETE FROM members WHERE id = ?', [member.id]);
@@ -170,6 +191,18 @@ app.get('/attendance', ensureAdmin, (req, res) => {
 
 app.get('/status', ensureAdmin, (req, res) => {
     res.render('status', { user: req.user, checkins });
+});
+
+app.get('/auto-role', ensureAdmin, (req, res) => {
+    db.all('SELECT id, name FROM roles ORDER BY name', (err, rows) => {
+        const roles = rows || [];
+        res.render('autoRole', { user: req.user, roles, currentRole: autoRoleId });
+    });
+});
+
+app.post('/auto-role', ensureAdmin, (req, res) => {
+    setAutoRoleId(req.body.role);
+    res.redirect('/auto-role');
 });
 
 app.get('/login', passport.authenticate('discord'));

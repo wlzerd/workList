@@ -22,6 +22,10 @@ db.serialize(() => {
     name TEXT,
     permissions INTEGER
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  )`);
 });
 
 module.exports = db;
