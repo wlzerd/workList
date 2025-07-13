@@ -19,9 +19,17 @@ const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || 'YOUR_BOT_TOKEN';
 const GUILD_ID = process.env.GUILD_ID || 'YOUR_GUILD_ID';
 const ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID; // optional
 const SPECIAL_ROLE_ID = '1015569732532961310';
-let autoRoleId = null;
-db.get('SELECT value FROM settings WHERE key = ?', ['autoRoleId'], (err, row) => {
-    if (!err && row) autoRoleId = row.value || null;
+let autoRoleIds = [];
+db.get('SELECT value FROM settings WHERE key = ?', ['autoRoleIds'], (err, row) => {
+    if (!err && row && row.value) {
+        autoRoleIds = row.value.split(',').filter(Boolean);
+    } else {
+        db.get('SELECT value FROM settings WHERE key = ?', ['autoRoleId'], (e2, r2) => {
+            if (!e2 && r2 && r2.value) {
+                autoRoleIds = [r2.value];
+            }
+        });
+    }
 });
 
 const scopes = ['identify'];
@@ -96,17 +104,22 @@ function updateMember(member) {
     );
 }
 
-function setAutoRoleId(id) {
-    autoRoleId = id || null;
-    db.run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ['autoRoleId', id || '']);
+function setAutoRoleIds(ids) {
+    autoRoleIds = ids.filter(Boolean);
+    db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['autoRoleIds', autoRoleIds.join(',')]
+    );
 }
 
 function assignAutoRole(member) {
-    if (!autoRoleId) return;
-    const role = member.guild.roles.cache.get(autoRoleId);
-    if (role) {
-        member.roles.add(role).catch(err => console.error('Failed to assign auto role', err));
-    }
+    if (!autoRoleIds || autoRoleIds.length === 0) return;
+    autoRoleIds.forEach(id => {
+        const role = member.guild.roles.cache.get(id);
+        if (role) {
+            member.roles.add(role).catch(err => console.error('Failed to assign auto role', err));
+        }
+    });
 }
 
 client.on('ready', async () => {
@@ -196,12 +209,16 @@ app.get('/status', ensureAdmin, (req, res) => {
 app.get('/auto-role', ensureAdmin, (req, res) => {
     db.all('SELECT id, name FROM roles ORDER BY name', (err, rows) => {
         const roles = rows || [];
-        res.render('autoRole', { user: req.user, roles, currentRole: autoRoleId });
+        const selectedRoles = roles.filter(r => autoRoleIds.includes(r.id));
+        res.render('autoRole', { user: req.user, roles, currentRoles: autoRoleIds, selectedRoles });
     });
 });
 
 app.post('/auto-role', ensureAdmin, (req, res) => {
-    setAutoRoleId(req.body.role);
+    let roles = req.body.roles || req.body.role;
+    if (!roles) roles = [];
+    if (!Array.isArray(roles)) roles = [roles];
+    setAutoRoleIds(roles);
     res.redirect('/auto-role');
 });
 
