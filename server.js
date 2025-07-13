@@ -35,11 +35,15 @@ db.get('SELECT value FROM settings WHERE key = ?', ['autoRoleIds'], (err, row) =
 
 let birthdayCategoryId = null;
 let birthdayChannelFormat = '{user}님의 생일입니다';
+let birthdayRoleId = null;
 db.get('SELECT value FROM settings WHERE key = ?', ['birthdayCategoryId'], (err, row) => {
     if (!err && row && row.value) birthdayCategoryId = row.value;
 });
 db.get('SELECT value FROM settings WHERE key = ?', ['birthdayChannelFormat'], (err, row) => {
     if (!err && row && row.value) birthdayChannelFormat = row.value;
+});
+db.get('SELECT value FROM settings WHERE key = ?', ['birthdayRoleId'], (err, row) => {
+    if (!err && row && row.value) birthdayRoleId = row.value;
 });
 
 const scopes = ['identify'];
@@ -141,19 +145,42 @@ function getSettingAsync(key) {
 }
 
 async function checkBirthdays() {
-    const today = DateTime.now().setZone('Asia/Seoul').toFormat('yyyy-MM-dd');
+    const now = DateTime.now().setZone('Asia/Seoul');
+    const today = now.toFormat('yyyy-MM-dd');
+    const yesterday = now.minus({ days: 1 }).toFormat('yyyy-MM-dd');
+    const guild = await client.guilds.fetch(GUILD_ID);
+    const categoryId = await getSettingAsync('birthdayCategoryId');
+    const format = (await getSettingAsync('birthdayChannelFormat')) || birthdayChannelFormat;
+    const roleId = (await getSettingAsync('birthdayRoleId')) || birthdayRoleId;
+
     db.all('SELECT userId FROM birthdays WHERE date = ?', [today], async (err, rows) => {
-        if (err || !rows || rows.length === 0) return;
-        const guild = await client.guilds.fetch(GUILD_ID);
-        const categoryId = await getSettingAsync('birthdayCategoryId');
-        const format = (await getSettingAsync('birthdayChannelFormat')) || birthdayChannelFormat;
-        for (const row of rows) {
-            const user = await client.users.fetch(row.userId).catch(() => null);
-            if (!user) continue;
-            const name = format.replace('{user}', user.username);
-            guild.channels.create({ name, type: 0, parent: categoryId || undefined }).catch(console.error);
+        if (!err && rows) {
+            for (const row of rows) {
+                const member = await guild.members.fetch(row.userId).catch(() => null);
+                if (!member) continue;
+                if (roleId) {
+                    const role = guild.roles.cache.get(roleId);
+                    if (role) member.roles.add(role).catch(console.error);
+                }
+                const name = format.replace('{user}', member.user.username);
+                guild.channels.create({ name, type: 0, parent: categoryId || undefined }).catch(console.error);
+            }
         }
     });
+
+    if (roleId) {
+        db.all('SELECT userId FROM birthdays WHERE date = ?', [yesterday], async (err, rows) => {
+            if (err || !rows) return;
+            for (const row of rows) {
+                const member = await guild.members.fetch(row.userId).catch(() => null);
+                if (!member) continue;
+                const role = guild.roles.cache.get(roleId);
+                if (role && member.roles.cache.has(roleId)) {
+                    member.roles.remove(role).catch(console.error);
+                }
+            }
+        });
+    }
 }
 
 client.on('ready', async () => {
@@ -284,21 +311,27 @@ app.get('/auto-role', ensureAdmin, (req, res) => {
 });
 
 app.get('/birthday-settings', ensureAdmin, (req, res) => {
-    db.all('SELECT key, value FROM settings WHERE key IN (?, ?)', ['birthdayCategoryId', 'birthdayChannelFormat'], (err, rows) => {
-        const settings = { categoryId: birthdayCategoryId, channelFormat: birthdayChannelFormat };
+    db.all('SELECT key, value FROM settings WHERE key IN (?, ?, ?)', ['birthdayCategoryId', 'birthdayChannelFormat', 'birthdayRoleId'], (err, rows) => {
+        const settings = { categoryId: birthdayCategoryId, channelFormat: birthdayChannelFormat, roleId: birthdayRoleId };
         rows.forEach(r => {
             if (r.key === 'birthdayCategoryId') settings.categoryId = r.value;
             if (r.key === 'birthdayChannelFormat') settings.channelFormat = r.value;
+            if (r.key === 'birthdayRoleId') settings.roleId = r.value;
         });
-        res.render('birthdaySettings', { user: req.user, settings });
+        db.all('SELECT id, name FROM roles ORDER BY name', (e2, roleRows) => {
+            const roles = roleRows || [];
+            res.render('birthdaySettings', { user: req.user, settings, roles });
+        });
     });
 });
 
 app.post('/birthday-settings', ensureAdmin, (req, res) => {
     birthdayCategoryId = req.body.categoryId || '';
     birthdayChannelFormat = req.body.channelFormat || '{user}님의 생일입니다';
+    birthdayRoleId = req.body.roleId || '';
     db.run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ['birthdayCategoryId', birthdayCategoryId]);
     db.run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ['birthdayChannelFormat', birthdayChannelFormat]);
+    db.run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ['birthdayRoleId', birthdayRoleId]);
     res.redirect('/birthday-settings');
 });
 
