@@ -6,7 +6,8 @@ This project provides a simple web interface for Discord server administrators t
 
 - **Discord OAuth2 Login** using `passport-discord`.
 - **Check-in/Check-out Buttons** once logged in.
-- **Announcements Sidebar** with mobile-friendly toggle.
+- **Sidebar Navigation** to Announcements, Check-in/out and Admin Status with mobile-friendly toggle.
+- **Admin Status Page** shows currently checked-in administrators.
 - **Responsive Design** prioritizing mobile devices.
 
 ## Setup
@@ -25,4 +26,4 @@ This project provides a simple web interface for Discord server administrators t
    ```
 4. Open `http://localhost:3000` in your browser.
 
-Announcements can be edited directly in `views/index.ejs`.
+Announcements can be edited directly in `views/announcements.ejs`.
