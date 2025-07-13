@@ -8,6 +8,11 @@ db.serialize(() => {
     roles TEXT,
     isAdmin INTEGER
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS roles (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    permissions INTEGER
+  )`);
 });
 
 module.exports = db;
