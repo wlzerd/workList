@@ -71,6 +71,18 @@ client.on('ready', async () => {
     const guild = await client.guilds.fetch(GUILD_ID);
     await guild.members.fetch();
     guild.members.cache.forEach(member => updateMember(member));
+    db.all('SELECT displayName, roles FROM members', (err, rows) => {
+        if (err) {
+            console.error('Error fetching roles from DB', err);
+            return;
+        }
+        console.log('--- Stored Member Roles ---');
+        rows.forEach(row => {
+            const name = row.displayName || row.id;
+            console.log(`${name}: ${row.roles}`);
+        });
+        console.log('---------------------------');
+    });
 });
 
 client.on('guildMemberAdd', member => updateMember(member));
