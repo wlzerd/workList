@@ -31,3 +31,20 @@ This project provides a simple web interface for Discord server administrators t
 4. Open `http://localhost:3000` in your browser.
 
 Announcements can be edited directly in `views/announcements.ejs`.
+
+## Docker Compose
+
+You can also run the project using Docker. Create a `.env` file with your Discord credentials and start the stack with Docker Compose 3.8:
+
+```bash
+DISCORD_CLIENT_ID=YOUR_CLIENT_ID
+DISCORD_CLIENT_SECRET=YOUR_CLIENT_SECRET
+DISCORD_BOT_TOKEN=YOUR_BOT_TOKEN
+GUILD_ID=YOUR_GUILD_ID
+ADMIN_ROLE_ID=ROLE_ID_WITH_ADMIN  # optional
+CALLBACK_URL=http://localhost:3000/callback
+
+docker compose up -d
+```
+
+The web interface will be available on `http://localhost:3000`.
