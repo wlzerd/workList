@@ -27,7 +27,7 @@
                 </div>
                 <% if (user) { %>
                     <div>
-                        <span><%= user.username %></span>
+                        <span><%= user.displayName || user.username %></span>
                         <a href="/logout" class="btn btn-sm btn-outline-danger">로그아웃</a>
                     </div>
                 <% } else { %>
