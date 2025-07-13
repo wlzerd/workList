@@ -26,6 +26,10 @@ db.serialize(() => {
     key TEXT PRIMARY KEY,
     value TEXT
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS birthdays (
+    userId TEXT PRIMARY KEY,
+    date TEXT
+  )`);
 });
 
 module.exports = db;
