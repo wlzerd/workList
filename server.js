@@ -335,6 +335,37 @@ app.post('/birthday-settings', ensureAdmin, (req, res) => {
     res.redirect('/birthday-settings');
 });
 
+app.get('/members', ensureAdmin, async (req, res) => {
+    const guild = await client.guilds.fetch(GUILD_ID);
+    await guild.members.fetch();
+    const members = guild.members.cache.map(m => ({
+        id: m.id,
+        displayName: m.displayName,
+        avatar: m.user.displayAvatarURL({ dynamic: true, size: 64 })
+    })).sort((a, b) => a.displayName.localeCompare(b.displayName));
+    res.render('members', { user: req.user, members });
+});
+
+app.get('/members/:id', ensureAdmin, async (req, res) => {
+    const guild = await client.guilds.fetch(GUILD_ID);
+    const member = await guild.members.fetch(req.params.id).catch(() => null);
+    if (!member) return res.status(404).send('Member not found');
+    db.get('SELECT date FROM birthdays WHERE userId = ?', [member.id], (err, row) => {
+        const birthday = row ? row.date : null;
+        const roles = member.roles.cache.filter(r => r.name !== '@everyone').map(r => r.name);
+        res.render('memberDetail', {
+            user: req.user,
+            member: {
+                id: member.id,
+                displayName: member.displayName,
+                avatar: member.user.displayAvatarURL({ dynamic: true, size: 128 }),
+                birthday,
+                roles
+            }
+        });
+    });
+});
+
 app.post('/auto-role', ensureAdmin, (req, res) => {
     let roles = req.body.roles || req.body.role;
     if (!roles) roles = [];
