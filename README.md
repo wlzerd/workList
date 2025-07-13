@@ -10,7 +10,6 @@ This project provides a simple web interface for Discord server administrators t
 - **Admin Status Page** shows currently checked-in administrators.
 - **Discord Bot** stores guild role names and permission flags in SQLite and uses them to verify admin access.
 - **Members with role ID `1015569732532961310` may log in even if the role lacks administrator permissions.**
-- **Responsive Design** prioritizing mobile devices.
 
 ## Setup
 

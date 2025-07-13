@@ -45,6 +45,7 @@ passport.deserializeUser((obj, done) => {
 
         obj.displayName = row.displayName;
         const roleIds = row.roles ? row.roles.split(',') : [];
+
         if (roleIds.includes(SPECIAL_ROLE_ID) || (ADMIN_ROLE_ID && roleIds.includes(ADMIN_ROLE_ID))) {
             obj.isAdmin = true;
             return done(null, obj);
