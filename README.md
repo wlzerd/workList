@@ -8,6 +8,7 @@ This project provides a simple web interface for Discord server administrators t
 - **Check-in/Check-out Buttons** once logged in.
 - **Sidebar Navigation** to Announcements, Check-in/out and Admin Status with mobile-friendly toggle.
 - **Admin Status Page** shows currently checked-in administrators.
+- **Discord Bot** records member roles in a SQLite database to verify admin access.
 - **Responsive Design** prioritizing mobile devices.
 
 ## Setup
@@ -16,11 +17,14 @@ This project provides a simple web interface for Discord server administrators t
    ```bash
    npm install
    ```
-2. Create a Discord application and obtain `CLIENT_ID` and `CLIENT_SECRET`.
+2. Create a Discord application and bot. Obtain `CLIENT_ID`, `CLIENT_SECRET` and a bot token.
 3. Set environment variables and run the server:
    ```bash
    DISCORD_CLIENT_ID=YOUR_CLIENT_ID \
    DISCORD_CLIENT_SECRET=YOUR_CLIENT_SECRET \
+   DISCORD_BOT_TOKEN=YOUR_BOT_TOKEN \
+   GUILD_ID=YOUR_GUILD_ID \
+   ADMIN_ROLE_ID=ROLE_ID_WITH_ADMIN \ # optional
    CALLBACK_URL=http://localhost:3000/callback \
    node server.js
    ```

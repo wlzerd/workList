@@ -3,6 +3,8 @@ const session = require('express-session');
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const path = require('path');
+const { Client, GatewayIntentBits, PermissionsBitField } = require('discord.js');
+const db = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,6 +13,11 @@ const PORT = process.env.PORT || 3000;
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || 'YOUR_CLIENT_ID';
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || 'YOUR_CLIENT_SECRET';
 const CALLBACK_URL = process.env.CALLBACK_URL || 'http://localhost:3000/callback';
+
+// Bot and guild settings
+const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || 'YOUR_BOT_TOKEN';
+const GUILD_ID = process.env.GUILD_ID || 'YOUR_GUILD_ID';
+const ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID; // optional
 
 const scopes = ['identify'];
 
@@ -28,7 +35,15 @@ passport.serializeUser((user, done) => {
 });
 
 passport.deserializeUser((obj, done) => {
-    done(null, obj);
+    db.get('SELECT displayName, isAdmin FROM members WHERE id = ?', [obj.id], (err, row) => {
+        if (row) {
+            obj.displayName = row.displayName;
+            obj.isAdmin = !!row.isAdmin;
+        } else {
+            obj.isAdmin = false;
+        }
+        done(err, obj);
+    });
 });
 
 app.set('view engine', 'ejs');
@@ -38,11 +53,44 @@ app.use(session({ secret: 'discord-checkin-secret', resave: false, saveUninitial
 app.use(passport.initialize());
 app.use(passport.session());
 
+// --- Discord Bot Setup ---
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+
+function updateMember(member) {
+    const roles = member.roles.cache.map(r => r.id).join(',');
+    const isAdmin = member.permissions.has(PermissionsBitField.Flags.Administrator) ||
+        (ADMIN_ROLE_ID && member.roles.cache.has(ADMIN_ROLE_ID));
+    db.run(
+        'INSERT OR REPLACE INTO members (id, displayName, roles, isAdmin) VALUES (?, ?, ?, ?)',
+        [member.id, member.displayName, roles, isAdmin ? 1 : 0]
+    );
+}
+
+client.on('ready', async () => {
+    console.log(`Bot logged in as ${client.user.tag}`);
+    const guild = await client.guilds.fetch(GUILD_ID);
+    await guild.members.fetch();
+    guild.members.cache.forEach(member => updateMember(member));
+});
+
+client.on('guildMemberAdd', member => updateMember(member));
+client.on('guildMemberUpdate', (oldMember, newMember) => updateMember(newMember));
+client.on('guildMemberRemove', member => {
+    db.run('DELETE FROM members WHERE id = ?', [member.id]);
+});
+
+client.login(DISCORD_BOT_TOKEN).catch(err => console.error('Bot login failed', err));
+
 const checkins = {}; // In-memory check-in data
 
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) return next();
     res.redirect('/login');
+}
+
+function ensureAdmin(req, res, next) {
+    if (req.isAuthenticated() && req.user.isAdmin) return next();
+    res.status(403).send('Admins only');
 }
 
 app.get('/', (req, res) => {
@@ -53,18 +101,24 @@ app.get('/announcements', (req, res) => {
     res.render('announcements', { user: req.user });
 });
 
-app.get('/attendance', (req, res) => {
+app.get('/attendance', ensureAdmin, (req, res) => {
     res.render('attendance', { user: req.user, checkins });
 });
 
-app.get('/status', (req, res) => {
+app.get('/status', ensureAdmin, (req, res) => {
     res.render('status', { user: req.user, checkins });
 });
 
 app.get('/login', passport.authenticate('discord'));
 
 app.get('/callback', passport.authenticate('discord', { failureRedirect: '/' }), (req, res) => {
-    res.redirect('/');
+    if (!req.user.isAdmin) {
+        req.logout(() => {
+            res.send('관리자 권한이 필요합니다.');
+        });
+    } else {
+        res.redirect('/');
+    }
 });
 
 app.get('/logout', (req, res) => {
@@ -77,7 +131,7 @@ app.post('/checkin', ensureAuthenticated, (req, res) => {
     checkins[req.user.id] = {
         status: 'in',
         time: new Date(),
-        username: req.user.username
+        username: req.user.displayName || req.user.username
     };
     res.redirect('/attendance');
 });
@@ -86,7 +140,7 @@ app.post('/checkout', ensureAuthenticated, (req, res) => {
     checkins[req.user.id] = {
         status: 'out',
         time: new Date(),
-        username: req.user.username
+        username: req.user.displayName || req.user.username
     };
     res.redirect('/attendance');
 });
