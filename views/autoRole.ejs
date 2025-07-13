@@ -38,16 +38,27 @@
             <% if (user) { %>
             <form method="post" action="/auto-role">
                 <div class="mb-3">
-                    <label for="role" class="form-label">부여할 역할</label>
-                    <select class="form-select" id="role" name="role">
-                        <option value="">없음</option>
+                    <label for="roles" class="form-label">부여할 역할</label>
+                    <select class="form-select" id="roles" name="roles" multiple size="5">
                         <% roles.forEach(function(role) { %>
-                            <option value="<%= role.id %>" <%= currentRole === role.id ? 'selected' : '' %>><%= role.name %></option>
+                            <option value="<%= role.id %>" <%= currentRoles.includes(role.id) ? 'selected' : '' %>><%= role.name %></option>
                         <% }) %>
                     </select>
                 </div>
                 <button type="submit" class="btn btn-primary">저장</button>
             </form>
+            <div class="mt-3">
+                <% if (selectedRoles.length > 0) { %>
+                    <strong>현재 자동 지급 역할:</strong>
+                    <ul>
+                        <% selectedRoles.forEach(function(role){ %>
+                            <li><%= role.name %></li>
+                        <% }) %>
+                    </ul>
+                <% } else { %>
+                    <p>지급 설정된 역할이 없습니다.</p>
+                <% } %>
+            </div>
             <% } %>
         </main>
     </div>
