@@ -46,7 +46,19 @@ function ensureAuthenticated(req, res, next) {
 }
 
 app.get('/', (req, res) => {
-    res.render('index', { user: req.user, checkins });
+    res.redirect('/announcements');
+});
+
+app.get('/announcements', (req, res) => {
+    res.render('announcements', { user: req.user });
+});
+
+app.get('/attendance', (req, res) => {
+    res.render('attendance', { user: req.user, checkins });
+});
+
+app.get('/status', (req, res) => {
+    res.render('status', { user: req.user, checkins });
 });
 
 app.get('/login', passport.authenticate('discord'));
@@ -62,13 +74,21 @@ app.get('/logout', (req, res) => {
 });
 
 app.post('/checkin', ensureAuthenticated, (req, res) => {
-    checkins[req.user.id] = { status: 'in', time: new Date() };
-    res.redirect('/');
+    checkins[req.user.id] = {
+        status: 'in',
+        time: new Date(),
+        username: req.user.username
+    };
+    res.redirect('/attendance');
 });
 
 app.post('/checkout', ensureAuthenticated, (req, res) => {
-    checkins[req.user.id] = { status: 'out', time: new Date() };
-    res.redirect('/');
+    checkins[req.user.id] = {
+        status: 'out',
+        time: new Date(),
+        username: req.user.username
+    };
+    res.redirect('/attendance');
 });
 
 app.listen(PORT, () => {
