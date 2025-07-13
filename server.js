@@ -35,14 +35,30 @@ passport.serializeUser((user, done) => {
 });
 
 passport.deserializeUser((obj, done) => {
-    db.get('SELECT displayName, isAdmin FROM members WHERE id = ?', [obj.id], (err, row) => {
-        if (row) {
-            obj.displayName = row.displayName;
-            obj.isAdmin = !!row.isAdmin;
-        } else {
+    db.get('SELECT displayName, roles FROM members WHERE id = ?', [obj.id], (err, row) => {
+        if (err || !row) {
+            if (row) obj.displayName = row.displayName;
             obj.isAdmin = false;
+            return done(err, obj);
         }
-        done(err, obj);
+
+        obj.displayName = row.displayName;
+        const roleIds = row.roles ? row.roles.split(',') : [];
+        if (roleIds.length === 0) {
+            obj.isAdmin = false;
+            return done(null, obj);
+        }
+
+        const placeholders = roleIds.map(() => '?').join(',');
+        db.all(`SELECT permissions FROM roles WHERE id IN (${placeholders})`, roleIds, (rErr, roles) => {
+            if (rErr) {
+                obj.isAdmin = false;
+                return done(rErr, obj);
+            }
+            const hasAdmin = roles.some(r => (r.permissions & PermissionsBitField.Flags.Administrator) !== 0);
+            obj.isAdmin = hasAdmin;
+            done(null, obj);
+        });
     });
 });
 
@@ -69,6 +85,14 @@ function updateMember(member) {
 client.on('ready', async () => {
     console.log(`Bot logged in as ${client.user.tag}`);
     const guild = await client.guilds.fetch(GUILD_ID);
+    await guild.roles.fetch();
+    guild.roles.cache.forEach(role => {
+        db.run(
+            'INSERT OR REPLACE INTO roles (id, name, permissions) VALUES (?, ?, ?)',
+            [role.id, role.name, role.permissions.bitfield]
+        );
+    });
+
     await guild.members.fetch();
     guild.members.cache.forEach(member => updateMember(member));
     db.all('SELECT displayName, roles FROM members', (err, rows) => {
@@ -89,6 +113,24 @@ client.on('guildMemberAdd', member => updateMember(member));
 client.on('guildMemberUpdate', (oldMember, newMember) => updateMember(newMember));
 client.on('guildMemberRemove', member => {
     db.run('DELETE FROM members WHERE id = ?', [member.id]);
+});
+
+client.on('roleCreate', role => {
+    db.run(
+        'INSERT OR REPLACE INTO roles (id, name, permissions) VALUES (?, ?, ?)',
+        [role.id, role.name, role.permissions.bitfield]
+    );
+});
+
+client.on('roleUpdate', (oldRole, newRole) => {
+    db.run(
+        'INSERT OR REPLACE INTO roles (id, name, permissions) VALUES (?, ?, ?)',
+        [newRole.id, newRole.name, newRole.permissions.bitfield]
+    );
+});
+
+client.on('roleDelete', role => {
+    db.run('DELETE FROM roles WHERE id = ?', [role.id]);
 });
 
 client.login(DISCORD_BOT_TOKEN).catch(err => console.error('Bot login failed', err));
