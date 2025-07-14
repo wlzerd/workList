@@ -20,6 +20,7 @@ const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || 'YOUR_BOT_TOKEN';
 const GUILD_ID = process.env.GUILD_ID || 'YOUR_GUILD_ID';
 const ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID; // optional
 const SPECIAL_ROLE_ID = '1015569732532961310';
+const WEB_ADMIN_ROLE_ID = '1393965005543837826';
 let autoRoleIds = [];
 db.get('SELECT value FROM settings WHERE key = ?', ['autoRoleIds'], (err, row) => {
     if (!err && row && row.value) {
@@ -30,6 +31,13 @@ db.get('SELECT value FROM settings WHERE key = ?', ['autoRoleIds'], (err, row) =
                 autoRoleIds = [r2.value];
             }
         });
+    }
+});
+
+let loginRoleIds = [];
+db.get('SELECT value FROM settings WHERE key = ?', ['loginRoleIds'], (err, row) => {
+    if (!err && row && row.value) {
+        loginRoleIds = row.value.split(',').filter(Boolean);
     }
 });
 
@@ -66,18 +74,23 @@ function loadUser(obj, done) {
         if (err || !row) {
             if (row) obj.displayName = row.displayName;
             obj.isAdmin = false;
+            obj.canManageWebAccess = false;
+            obj.canLogin = false;
             return done(err, obj);
         }
 
         obj.displayName = row.displayName;
         const roleIds = row.roles ? row.roles.split(',') : [];
+        obj.canManageWebAccess = roleIds.includes(WEB_ADMIN_ROLE_ID);
 
         if (roleIds.includes(SPECIAL_ROLE_ID) || (ADMIN_ROLE_ID && roleIds.includes(ADMIN_ROLE_ID))) {
             obj.isAdmin = true;
+            obj.canLogin = true;
             return done(null, obj);
         }
         if (roleIds.length === 0) {
             obj.isAdmin = false;
+            obj.canLogin = obj.canManageWebAccess || roleIds.some(id => loginRoleIds.includes(id));
             return done(null, obj);
         }
 
@@ -85,10 +98,12 @@ function loadUser(obj, done) {
         db.all(`SELECT permissions FROM roles WHERE id IN (${placeholders})`, roleIds, (rErr, roles) => {
             if (rErr) {
                 obj.isAdmin = false;
+                obj.canLogin = obj.canManageWebAccess || roleIds.some(id => loginRoleIds.includes(id));
                 return done(rErr, obj);
             }
             const hasAdmin = roles.some(r => (r.permissions & PermissionsBitField.Flags.Administrator) !== 0);
             obj.isAdmin = hasAdmin;
+            obj.canLogin = obj.isAdmin || obj.canManageWebAccess || roleIds.some(id => loginRoleIds.includes(id));
             done(null, obj);
         });
     });
@@ -123,6 +138,14 @@ function setAutoRoleIds(ids) {
     db.run(
         'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
         ['autoRoleIds', autoRoleIds.join(',')]
+    );
+}
+
+function setLoginRoleIds(ids) {
+    loginRoleIds = ids.filter(Boolean);
+    db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['loginRoleIds', loginRoleIds.join(',')]
     );
 }
 
@@ -287,6 +310,11 @@ function ensureAdmin(req, res, next) {
     res.status(403).send('Admins only');
 }
 
+function ensureWebAdmin(req, res, next) {
+    if (req.isAuthenticated() && req.user.canManageWebAccess) return next();
+    res.status(403).send('Web access managers only');
+}
+
 app.get('/', (req, res) => {
     res.redirect('/announcements');
 });
@@ -368,6 +396,22 @@ app.get('/members/:id', ensureAdmin, async (req, res) => {
     });
 });
 
+app.get('/login-roles', ensureWebAdmin, (req, res) => {
+    db.all('SELECT id, name FROM roles ORDER BY name', (err, rows) => {
+        const roles = rows || [];
+        const selectedRoles = roles.filter(r => loginRoleIds.includes(r.id));
+        res.render('loginRoles', { user: req.user, roles, currentRoles: loginRoleIds, selectedRoles });
+    });
+});
+
+app.post('/login-roles', ensureWebAdmin, (req, res) => {
+    let roles = req.body.roles || req.body.role;
+    if (!roles) roles = [];
+    if (!Array.isArray(roles)) roles = [roles];
+    setLoginRoleIds(roles);
+    res.redirect('/login-roles');
+});
+
 app.post('/auto-role', ensureAdmin, (req, res) => {
     let roles = req.body.roles || req.body.role;
     if (!roles) roles = [];
@@ -379,9 +423,9 @@ app.post('/auto-role', ensureAdmin, (req, res) => {
 app.get('/login', passport.authenticate('discord'));
 
 app.get('/callback', passport.authenticate('discord', { failureRedirect: '/' }), (req, res) => {
-    if (!req.user.isAdmin) {
+    if (!req.user.canLogin && !req.user.canManageWebAccess) {
         req.logout(() => {
-            res.send('관리자 권한이 필요합니다.');
+            res.send('웹 사이트에 접속 권한이 없습니다.');
         });
     } else {
         res.redirect('/');
