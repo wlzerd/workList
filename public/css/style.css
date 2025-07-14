@@ -1,5 +1,9 @@
 body {
-    font-size: 14px;
+    font-size: 16px;
+}
+
+#announcements .list-group-item {
+    font-size: 1.1rem;
 }
 
 @media (min-width: 768px) {
