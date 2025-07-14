@@ -2,8 +2,16 @@ body {
     font-size: 16px;
 }
 
-#announcements .list-group-item {
+#announcements .card-title {
     font-size: 1.1rem;
+}
+
+#announcements .announcement-item {
+    transition: transform 0.2s;
+}
+
+#announcements .announcement-item:hover {
+    transform: translateY(-2px);
 }
 
 @media (min-width: 768px) {
