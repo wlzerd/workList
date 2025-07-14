@@ -48,10 +48,10 @@
                     <li class="list-group-item">등록된 공지사항이 없습니다.</li>
                 <% } else { %>
                     <% announcements.forEach(function(a){ %>
-                        <li class="list-group-item">
-                            <a href="/announcements/<%= a.id %>"><%= a.title %></a>
+                        <a href="/announcements/<%= a.id %>" class="list-group-item list-group-item-action">
+                            <span class="fw-bold"><%= a.title %></span>
                             <span class="text-muted ms-2">- <%= a.author %></span>
-                        </li>
+                        </a>
                     <% }) %>
                 <% } %>
             </ul>
