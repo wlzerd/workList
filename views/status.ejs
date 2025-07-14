@@ -40,8 +40,10 @@
             <h4>출근중인 관리자</h4>
             <ul>
                 <% Object.keys(checkins).forEach(function(id) { %>
-                    <% if (checkins[id].status === 'in') { %>
-                        <li><%= checkins[id].username || id %> (<%= checkins[id].time.toLocaleString() %>)</li>
+                    <% var list = checkins[id]; %>
+                    <% var last = list && list[list.length - 1]; %>
+                    <% if (last && last.status === 'in') { %>
+                        <li><%= last.username || id %> (<%= last.time.toLocaleString() %>)</li>
                     <% } %>
                 <% }) %>
             </ul>

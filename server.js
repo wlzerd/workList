@@ -274,7 +274,8 @@ client.on('interactionCreate', async interaction => {
 
 client.login(DISCORD_BOT_TOKEN).catch(err => console.error('Bot login failed', err));
 
-const checkins = {}; // In-memory check-in data
+// In-memory check-in data. Each user ID maps to an array of {status, time, username}
+const checkins = {};
 
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) return next();
@@ -295,7 +296,8 @@ app.get('/announcements', (req, res) => {
 });
 
 app.get('/attendance', ensureAdmin, (req, res) => {
-    res.render('attendance', { user: req.user, checkins });
+    const userCheckins = checkins[req.user.id] || [];
+    res.render('attendance', { user: req.user, checkins: userCheckins });
 });
 
 app.get('/status', ensureAdmin, (req, res) => {
@@ -393,20 +395,22 @@ app.get('/logout', (req, res) => {
 });
 
 app.post('/checkin', ensureAuthenticated, (req, res) => {
-    checkins[req.user.id] = {
+    if (!checkins[req.user.id]) checkins[req.user.id] = [];
+    checkins[req.user.id].push({
         status: 'in',
         time: new Date(),
         username: req.user.displayName || req.user.username
-    };
+    });
     res.redirect('/attendance');
 });
 
 app.post('/checkout', ensureAuthenticated, (req, res) => {
-    checkins[req.user.id] = {
+    if (!checkins[req.user.id]) checkins[req.user.id] = [];
+    checkins[req.user.id].push({
         status: 'out',
         time: new Date(),
         username: req.user.displayName || req.user.username
-    };
+    });
     res.redirect('/attendance');
 });
 
