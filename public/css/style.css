@@ -2,6 +2,24 @@ body {
     font-size: 16px;
 }
 
+#sidebar {
+    background-color: #343a40;
+    color: #fff;
+}
+
+#sidebar .nav-link {
+    color: #adb5bd;
+}
+
+#sidebar .nav-link:hover {
+    color: #fff;
+}
+
+#sidebar .nav-link.active {
+    background-color: #495057;
+    color: #fff;
+}
+
 #announcements .card-title {
     font-size: 1.1rem;
 }
