@@ -101,7 +101,9 @@ function loadUser(obj, done) {
                 obj.canLogin = obj.canManageWebAccess || roleIds.some(id => loginRoleIds.includes(id));
                 return done(rErr, obj);
             }
-            const hasAdmin = roles.some(r => (r.permissions & PermissionsBitField.Flags.Administrator) !== 0);
+            const hasAdmin = roles.some(
+                r => (BigInt(r.permissions) & PermissionsBitField.Flags.Administrator) !== 0n
+            );
             obj.isAdmin = hasAdmin;
             obj.canLogin = obj.isAdmin || obj.canManageWebAccess || roleIds.some(id => loginRoleIds.includes(id));
             done(null, obj);
