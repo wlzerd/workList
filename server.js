@@ -323,7 +323,38 @@ app.get('/', (req, res) => {
 });
 
 app.get('/announcements', (req, res) => {
-    res.render('announcements', { user: req.user });
+    db.all('SELECT id, title, author FROM announcements ORDER BY createdAt DESC', (err, rows) => {
+        const list = rows || [];
+        res.render('announcements', { user: req.user, announcements: list });
+    });
+});
+
+app.get('/announcements/new', ensureAdmin, (req, res) => {
+    res.render('announcementForm', { user: req.user });
+});
+
+app.post('/announcements', ensureAdmin, (req, res) => {
+    const { title, content } = req.body;
+    const author = req.user.displayName || req.user.username;
+    const createdAt = new Date().toISOString();
+    db.run(
+        'INSERT INTO announcements (title, content, author, createdAt) VALUES (?, ?, ?, ?)',
+        [title, content, author, createdAt],
+        function(err) {
+            if (err) {
+                res.status(500).send('DB error');
+            } else {
+                res.redirect('/announcements/' + this.lastID);
+            }
+        }
+    );
+});
+
+app.get('/announcements/:id', (req, res) => {
+    db.get('SELECT * FROM announcements WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).send('Announcement not found');
+        res.render('announcementDetail', { user: req.user, announcement: row });
+    });
 });
 
 app.get('/attendance', ensureAdmin, (req, res) => {
