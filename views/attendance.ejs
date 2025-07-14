@@ -45,11 +45,15 @@
                 <button class="btn btn-warning" type="submit">퇴근</button>
             </form>
             <hr>
-            <h4>출근 현황</h4>
+            <h4>출퇴근 기록</h4>
             <ul>
-                <% Object.keys(checkins).forEach(function(id) { %>
-                    <li><%= checkins[id].username || id %> - <%= checkins[id].status %> (<%= checkins[id].time.toLocaleString() %>)</li>
-                <% }) %>
+                <% if (checkins.length === 0) { %>
+                    <li>출퇴근 기록이 없습니다.</li>
+                <% } else { %>
+                    <% checkins.forEach(function(entry) { %>
+                        <li><%= entry.status %> (<%= entry.time.toLocaleString() %>)</li>
+                    <% }) %>
+                <% } %>
             </ul>
             <% } %>
         </main>
