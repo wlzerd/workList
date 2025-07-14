@@ -101,9 +101,10 @@ function loadUser(obj, done) {
                 obj.canLogin = obj.canManageWebAccess || roleIds.some(id => loginRoleIds.includes(id));
                 return done(rErr, obj);
             }
-            const hasAdmin = roles.some(
-                r => (BigInt(r.permissions) & PermissionsBitField.Flags.Administrator) !== 0n
-            );
+            const hasAdmin = roles.some(r => {
+                const perms = r.permissions ?? 0;
+                return (BigInt(perms) & PermissionsBitField.Flags.Administrator) !== 0n;
+            });
             obj.isAdmin = hasAdmin;
             obj.canLogin = obj.isAdmin || obj.canManageWebAccess || roleIds.some(id => loginRoleIds.includes(id));
             done(null, obj);
@@ -215,7 +216,7 @@ client.on('ready', async () => {
     guild.roles.cache.forEach(role => {
         db.run(
             'INSERT OR REPLACE INTO roles (id, name, permissions) VALUES (?, ?, ?)',
-            [role.id, role.name, role.permissions.bitfield]
+            [role.id, role.name, String(role.permissions.bitfield)]
         );
     });
 
@@ -259,14 +260,14 @@ client.on('guildMemberRemove', member => {
 client.on('roleCreate', role => {
     db.run(
         'INSERT OR REPLACE INTO roles (id, name, permissions) VALUES (?, ?, ?)',
-        [role.id, role.name, role.permissions.bitfield]
+        [role.id, role.name, String(role.permissions.bitfield)]
     );
 });
 
 client.on('roleUpdate', (oldRole, newRole) => {
     db.run(
         'INSERT OR REPLACE INTO roles (id, name, permissions) VALUES (?, ?, ?)',
-        [newRole.id, newRole.name, newRole.permissions.bitfield]
+        [newRole.id, newRole.name, String(newRole.permissions.bitfield)]
     );
 });
 
