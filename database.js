@@ -30,6 +30,13 @@ db.serialize(() => {
     userId TEXT PRIMARY KEY,
     date TEXT
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    content TEXT,
+    author TEXT,
+    createdAt TEXT
+  )`);
 });
 
 module.exports = db;
