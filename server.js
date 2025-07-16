@@ -81,6 +81,7 @@ function loadUser(obj, done) {
 
         obj.displayName = row.displayName;
         const roleIds = row.roles ? row.roles.split(',') : [];
+        const hasLoginRole = roleIds.some(id => loginRoleIds.includes(id));
         obj.canManageWebAccess = roleIds.includes(WEB_ADMIN_ROLE_ID);
 
         if (roleIds.includes(SPECIAL_ROLE_ID) || (ADMIN_ROLE_ID && roleIds.includes(ADMIN_ROLE_ID))) {
@@ -89,24 +90,24 @@ function loadUser(obj, done) {
             return done(null, obj);
         }
         if (roleIds.length === 0) {
-            obj.isAdmin = false;
-            obj.canLogin = obj.canManageWebAccess || roleIds.some(id => loginRoleIds.includes(id));
+            obj.isAdmin = hasLoginRole;
+            obj.canLogin = obj.isAdmin || obj.canManageWebAccess;
             return done(null, obj);
         }
 
         const placeholders = roleIds.map(() => '?').join(',');
         db.all(`SELECT permissions FROM roles WHERE id IN (${placeholders})`, roleIds, (rErr, roles) => {
             if (rErr) {
-                obj.isAdmin = false;
-                obj.canLogin = obj.canManageWebAccess || roleIds.some(id => loginRoleIds.includes(id));
+                obj.isAdmin = hasLoginRole;
+                obj.canLogin = obj.isAdmin || obj.canManageWebAccess;
                 return done(rErr, obj);
             }
             const hasAdmin = roles.some(r => {
                 const perms = r.permissions ?? 0;
                 return (BigInt(perms) & PermissionsBitField.Flags.Administrator) !== 0n;
             });
-            obj.isAdmin = hasAdmin;
-            obj.canLogin = obj.isAdmin || obj.canManageWebAccess || roleIds.some(id => loginRoleIds.includes(id));
+            obj.isAdmin = hasAdmin || hasLoginRole;
+            obj.canLogin = obj.isAdmin || obj.canManageWebAccess;
             done(null, obj);
         });
     });
@@ -127,9 +128,11 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 
 function updateMember(member) {
     const roles = member.roles.cache.map(r => r.id).join(',');
+    const hasLoginRole = member.roles.cache.some(r => loginRoleIds.includes(r.id));
     const isAdmin = member.permissions.has(PermissionsBitField.Flags.Administrator) ||
         (ADMIN_ROLE_ID && member.roles.cache.has(ADMIN_ROLE_ID)) ||
-        member.roles.cache.has(SPECIAL_ROLE_ID);
+        member.roles.cache.has(SPECIAL_ROLE_ID) ||
+        hasLoginRole;
     db.run(
         'INSERT OR REPLACE INTO members (id, displayName, roles, isAdmin) VALUES (?, ?, ?, ?)',
         [member.id, member.displayName, roles, isAdmin ? 1 : 0]
