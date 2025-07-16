@@ -37,6 +37,13 @@ db.serialize(() => {
     author TEXT,
     createdAt TEXT
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS checkins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId TEXT,
+    status TEXT,
+    time TEXT,
+    username TEXT
+  )`);
 });
 
 module.exports = db;

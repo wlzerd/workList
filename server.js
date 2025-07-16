@@ -303,6 +303,19 @@ client.login(DISCORD_BOT_TOKEN).catch(err => console.error('Bot login failed', e
 // In-memory check-in data. Each user ID maps to an array of {status, time, username}
 const checkins = {};
 
+// Load saved check-in data from the database
+db.all('SELECT userId, status, time, username FROM checkins ORDER BY time', (err, rows) => {
+    if (err || !rows) return;
+    rows.forEach(row => {
+        if (!checkins[row.userId]) checkins[row.userId] = [];
+        checkins[row.userId].push({
+            status: row.status,
+            time: new Date(row.time),
+            username: row.username
+        });
+    });
+});
+
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) return next();
     res.redirect('/login');
@@ -473,22 +486,32 @@ app.get('/logout', (req, res) => {
 });
 
 app.post('/checkin', ensureAuthenticated, (req, res) => {
-    if (!checkins[req.user.id]) checkins[req.user.id] = [];
-    checkins[req.user.id].push({
+    const entry = {
         status: 'in',
         time: new Date(),
         username: req.user.displayName || req.user.username
-    });
+    };
+    if (!checkins[req.user.id]) checkins[req.user.id] = [];
+    checkins[req.user.id].push(entry);
+    db.run(
+        'INSERT INTO checkins (userId, status, time, username) VALUES (?, ?, ?, ?)',
+        [req.user.id, entry.status, entry.time.toISOString(), entry.username]
+    );
     res.redirect('/attendance');
 });
 
 app.post('/checkout', ensureAuthenticated, (req, res) => {
-    if (!checkins[req.user.id]) checkins[req.user.id] = [];
-    checkins[req.user.id].push({
+    const entry = {
         status: 'out',
         time: new Date(),
         username: req.user.displayName || req.user.username
-    });
+    };
+    if (!checkins[req.user.id]) checkins[req.user.id] = [];
+    checkins[req.user.id].push(entry);
+    db.run(
+        'INSERT INTO checkins (userId, status, time, username) VALUES (?, ?, ?, ?)',
+        [req.user.id, entry.status, entry.time.toISOString(), entry.username]
+    );
     res.redirect('/attendance');
 });
 
