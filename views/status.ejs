@@ -47,13 +47,15 @@
                 <% } else { %>
                     <% activeAdmins.forEach(function(a){ %>
                     <div class="col-6 col-sm-4 col-md-3 col-lg-2 mb-3">
-                        <div class="card status-card h-100 text-center">
-                            <img src="<%= a.avatar %>" class="card-img-top rounded-circle w-75 mx-auto mt-3" alt="avatar">
-                            <div class="card-body p-2">
-                                <h6 class="card-title mb-1"><%= a.displayName %></h6>
-                                <small class="text-muted"><%= a.time.toLocaleString() %></small>
+                        <a href="/members/<%= a.id %>" class="text-decoration-none text-reset">
+                            <div class="card status-card h-100 text-center">
+                                <img src="<%= a.avatar %>" class="card-img-top rounded-circle w-75 mx-auto mt-3" alt="avatar">
+                                <div class="card-body p-2">
+                                    <h6 class="card-title mb-1"><%= a.displayName %></h6>
+                                    <small class="text-muted"><%= a.time.toLocaleString() %></small>
+                                </div>
                             </div>
-                        </div>
+                        </a>
                     </div>
                     <% }) %>
                 <% } %>
@@ -66,17 +68,19 @@
                 <% } else { %>
                     <% inactiveAdmins.forEach(function(a){ %>
                     <div class="col-6 col-sm-4 col-md-3 col-lg-2 mb-3">
-                        <div class="card status-card inactive-card h-100 text-center">
-                            <img src="<%= a.avatar %>" class="card-img-top rounded-circle w-75 mx-auto mt-3" alt="avatar">
-                            <div class="card-body p-2">
-                                <h6 class="card-title mb-1"><%= a.displayName %></h6>
-                                <% if (a.time) { %>
-                                <small class="text-muted">마지막 기록: <%= a.time.toLocaleString() %></small>
-                                <% } else { %>
-                                <small class="text-muted">기록 없음</small>
-                                <% } %>
+                        <a href="/members/<%= a.id %>" class="text-decoration-none text-reset">
+                            <div class="card status-card inactive-card h-100 text-center">
+                                <img src="<%= a.avatar %>" class="card-img-top rounded-circle w-75 mx-auto mt-3" alt="avatar">
+                                <div class="card-body p-2">
+                                    <h6 class="card-title mb-1"><%= a.displayName %></h6>
+                                    <% if (a.time) { %>
+                                    <small class="text-muted">마지막 기록: <%= a.time.toLocaleString() %></small>
+                                    <% } else { %>
+                                    <small class="text-muted">기록 없음</small>
+                                    <% } %>
+                                </div>
                             </div>
-                        </div>
+                        </a>
                     </div>
                     <% }) %>
                 <% } %>

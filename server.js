@@ -461,6 +461,7 @@ app.get('/members/:id', ensureAdmin, async (req, res) => {
     db.get('SELECT date FROM birthdays WHERE userId = ?', [member.id], (err, row) => {
         const birthday = row ? row.date : null;
         const roles = member.roles.cache.filter(r => r.name !== '@everyone').map(r => r.name);
+        const memberCheckins = checkins[member.id] || [];
         res.render('memberDetail', {
             user: req.user,
             member: {
@@ -469,7 +470,8 @@ app.get('/members/:id', ensureAdmin, async (req, res) => {
                 avatar: member.user.displayAvatarURL({ dynamic: true, size: 128 }),
                 birthday,
                 roles
-            }
+            },
+            checkins: memberCheckins
         });
     });
 });

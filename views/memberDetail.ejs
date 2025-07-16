@@ -62,6 +62,18 @@
                     역할 정보가 없습니다.
                 <% } %>
             </div>
+            <div class="mb-3">
+                <strong>출퇴근 기록:</strong>
+                <ul>
+                    <% if (checkins.length === 0) { %>
+                        <li>출퇴근 기록이 없습니다.</li>
+                    <% } else { %>
+                        <% checkins.forEach(function(entry){ %>
+                            <li><%= entry.status %> (<%= entry.time.toLocaleString() %>)</li>
+                        <% }) %>
+                    <% } %>
+                </ul>
+            </div>
         </main>
     </div>
 </div>
