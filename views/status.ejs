@@ -41,15 +41,23 @@
                 <% } %>
             </div>
             <h4>출근중인 관리자</h4>
-            <ul>
-                <% Object.keys(checkins).forEach(function(id) { %>
-                    <% var list = checkins[id]; %>
-                    <% var last = list && list[list.length - 1]; %>
-                    <% if (last && last.status === 'in') { %>
-                        <li><%= last.username || id %> (<%= last.time.toLocaleString() %>)</li>
-                    <% } %>
-                <% }) %>
-            </ul>
+            <div class="row">
+                <% if (activeAdmins.length === 0) { %>
+                    <div class="col-12">출근중인 관리자가 없습니다.</div>
+                <% } else { %>
+                    <% activeAdmins.forEach(function(a){ %>
+                    <div class="col-6 col-sm-4 col-md-3 col-lg-2 mb-3">
+                        <div class="card h-100 text-center">
+                            <img src="<%= a.avatar %>" class="card-img-top rounded-circle w-75 mx-auto mt-3" alt="avatar">
+                            <div class="card-body p-2">
+                                <h6 class="card-title mb-1"><%= a.displayName %></h6>
+                                <small class="text-muted"><%= a.time.toLocaleString() %></small>
+                            </div>
+                        </div>
+                    </div>
+                    <% }) %>
+                <% } %>
+            </div>
         </main>
     </div>
 </div>
