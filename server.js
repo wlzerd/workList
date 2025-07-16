@@ -379,20 +379,35 @@ app.get('/status', ensureAdmin, async (req, res) => {
     const guild = await client.guilds.fetch(GUILD_ID);
     await guild.members.fetch();
     const activeAdmins = [];
+    const inactiveAdmins = [];
     guild.members.cache.forEach(member => {
         if (!member.roles.cache.some(r => loginRoleIds.includes(r.id))) return;
         const list = checkins[member.id];
-        if (!list || list.length === 0) return;
+        if (!list || list.length === 0) {
+            inactiveAdmins.push({
+                id: member.id,
+                displayName: member.displayName,
+                avatar: member.user.displayAvatarURL({ dynamic: true, size: 64 }),
+                time: null
+            });
+            return;
+        }
         const last = list[list.length - 1];
-        if (last.status !== 'in') return;
-        activeAdmins.push({
+        const info = {
             id: member.id,
             displayName: member.displayName,
             avatar: member.user.displayAvatarURL({ dynamic: true, size: 64 }),
             time: last.time
-        });
+        };
+        if (last.status === 'in') {
+            activeAdmins.push(info);
+        } else {
+            inactiveAdmins.push(info);
+        }
     });
-    res.render('status', { user: req.user, activeAdmins });
+    activeAdmins.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    inactiveAdmins.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    res.render('status', { user: req.user, activeAdmins, inactiveAdmins });
 });
 
 app.get('/auto-role', ensureAdmin, (req, res) => {

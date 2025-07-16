@@ -32,6 +32,18 @@ body {
     transform: translateY(-2px);
 }
 
+.status-card {
+    transition: transform 0.2s;
+}
+
+.status-card:hover {
+    transform: translateY(-2px);
+}
+
+.inactive-card {
+    background-color: #f8f9fa;
+}
+
 @media (min-width: 768px) {
     #sidebar {
         min-height: 100vh;
