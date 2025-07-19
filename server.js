@@ -82,9 +82,9 @@ function loadUser(obj, done) {
         obj.displayName = row.displayName;
         const roleIds = row.roles ? row.roles.split(',') : [];
         const hasLoginRole = roleIds.some(id => loginRoleIds.includes(id));
-        obj.canManageWebAccess = roleIds.includes(WEB_ADMIN_ROLE_ID);
+        obj.canManageWebAccess = roleIds.includes(WEB_ADMIN_ROLE_ID) || roleIds.includes(SPECIAL_ROLE_ID);
 
-        if (roleIds.includes(SPECIAL_ROLE_ID) || (ADMIN_ROLE_ID && roleIds.includes(ADMIN_ROLE_ID))) {
+        if (roleIds.includes(SPECIAL_ROLE_ID) || roleIds.includes(WEB_ADMIN_ROLE_ID) || (ADMIN_ROLE_ID && roleIds.includes(ADMIN_ROLE_ID))) {
             obj.isAdmin = true;
             obj.canLogin = true;
             return done(null, obj);
@@ -132,6 +132,7 @@ function updateMember(member) {
     const isAdmin = member.permissions.has(PermissionsBitField.Flags.Administrator) ||
         (ADMIN_ROLE_ID && member.roles.cache.has(ADMIN_ROLE_ID)) ||
         member.roles.cache.has(SPECIAL_ROLE_ID) ||
+        member.roles.cache.has(WEB_ADMIN_ROLE_ID) ||
         hasLoginRole;
     db.run(
         'INSERT OR REPLACE INTO members (id, displayName, roles, isAdmin) VALUES (?, ?, ?, ?)',
