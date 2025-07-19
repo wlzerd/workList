@@ -44,6 +44,9 @@ db.serialize(() => {
     time TEXT,
     username TEXT
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS banlist (
+    userId TEXT PRIMARY KEY
+  )`);
 });
 
 module.exports = db;

@@ -254,6 +254,11 @@ client.on('ready', async () => {
 client.on('guildMemberAdd', member => {
     updateMember(member);
     assignAutoRole(member);
+    db.get('SELECT 1 FROM banlist WHERE userId = ?', [member.id], (err, row) => {
+        if (row) {
+            member.ban({ reason: 'Listed in banlist' }).catch(console.error);
+        }
+    });
 });
 client.on('guildMemberUpdate', (oldMember, newMember) => updateMember(newMember));
 client.on('guildMemberRemove', member => {
@@ -501,6 +506,27 @@ app.post('/auto-role', ensureAdmin, (req, res) => {
     if (!Array.isArray(roles)) roles = [roles];
     setAutoRoleIds(roles);
     res.redirect('/auto-role');
+});
+
+app.get('/banlist', ensureAdmin, (req, res) => {
+    db.all('SELECT userId FROM banlist ORDER BY userId', (err, rows) => {
+        const ids = rows ? rows.map(r => r.userId) : [];
+        res.render('banlist', { user: req.user, ids });
+    });
+});
+
+app.post('/banlist/add', ensureAdmin, (req, res) => {
+    const id = req.body.userId;
+    db.run('INSERT OR IGNORE INTO banlist (userId) VALUES (?)', [id], () => {
+        res.redirect('/banlist');
+    });
+});
+
+app.post('/banlist/remove', ensureAdmin, (req, res) => {
+    const id = req.body.userId;
+    db.run('DELETE FROM banlist WHERE userId = ?', [id], () => {
+        res.redirect('/banlist');
+    });
 });
 
 app.get('/login', passport.authenticate('discord'));
