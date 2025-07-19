@@ -3,7 +3,7 @@ const session = require('express-session');
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const path = require('path');
-const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, ChannelType } = require('discord.js');
 const { DateTime } = require('luxon');
 const db = require('./database');
 
@@ -182,18 +182,26 @@ async function checkBirthdays() {
     const categoryId = await getSettingAsync('birthdayCategoryId');
     const format = (await getSettingAsync('birthdayChannelFormat')) || birthdayChannelFormat;
     const roleId = (await getSettingAsync('birthdayRoleId')) || birthdayRoleId;
+    const category = categoryId ? guild.channels.cache.get(categoryId) : null;
 
     db.all('SELECT userId FROM birthdays WHERE date = ?', [today], async (err, rows) => {
-        if (!err && rows) {
-            for (const row of rows) {
-                const member = await guild.members.fetch(row.userId).catch(() => null);
-                if (!member) continue;
-                if (roleId) {
-                    const role = guild.roles.cache.get(roleId);
-                    if (role) member.roles.add(role).catch(console.error);
-                }
-                const name = format.replace('{user}', member.user.username);
-                guild.channels.create({ name, type: 0, parent: categoryId || undefined }).catch(console.error);
+        if (err || !rows) return;
+        for (const row of rows) {
+            const member = await guild.members.fetch(row.userId).catch(() => null);
+            if (!member) continue;
+            if (roleId) {
+                const role = guild.roles.cache.get(roleId);
+                if (role) await member.roles.add(role).catch(console.error);
+            }
+            const name = format.replace('{user}', member.displayName || member.user.username);
+            try {
+                await guild.channels.create({
+                    name,
+                    type: ChannelType.GuildText,
+                    parent: category ?? undefined,
+                });
+            } catch (e) {
+                console.error('Failed to create birthday channel', e);
             }
         }
     });
